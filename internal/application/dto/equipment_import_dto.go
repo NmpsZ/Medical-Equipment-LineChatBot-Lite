@@ -65,7 +65,7 @@ type EquipmentImportResultDTO struct {
 	TotalRows      int      `json:"total_rows"`
 	SuccessCount   int      `json:"success_count"`
 	FailedCount    int      `json:"failed_count"`
-	SkippedCount   int      `json:"skipped_count"`
+	UpdatedCount   int      `json:"updated_count"`
 	NewBrands      int      `json:"new_brands"`
 	NewCategories  int      `json:"new_categories"`
 	NewDepartments int      `json:"new_departments"`

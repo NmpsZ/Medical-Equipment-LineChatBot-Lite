@@ -69,8 +69,8 @@ func (h *EquipmentImportHandler) ImportExcel(c *fiber.Ctx) error {
 	// Build success message
 	message := buildSuccessMessage(result)
 	log.Printf("Import completed: %s", message)
-	log.Printf("Stats: Total=%d, Success=%d, Failed=%d, Skipped=%d",
-		result.TotalRows, result.SuccessCount, result.FailedCount, result.SkippedCount)
+	log.Printf("Stats: Total=%d, Success=%d, Failed=%d, Updated=%d",
+		result.TotalRows, result.SuccessCount, result.FailedCount, result.UpdatedCount)
 	log.Printf("New records: Brands=%d, Categories=%d, Departments=%d, Models=%d",
 		result.NewBrands, result.NewCategories, result.NewDepartments, result.NewModels)
 
@@ -189,17 +189,17 @@ func (h *EquipmentImportHandler) GetImportHistory(c *fiber.Ctx) error {
 
 // buildSuccessMessage builds appropriate message based on import result
 func buildSuccessMessage(result *dto.EquipmentImportResultDTO) string {
-	if result.FailedCount == 0 && result.SkippedCount == 0 {
+	if result.FailedCount == 0 && result.UpdatedCount == 0 {
 		return "Excel file imported successfully! All rows processed."
 	}
-	if result.FailedCount > 0 && result.SkippedCount > 0 {
-		return "Excel file imported with some errors and skipped rows. Please check the details."
+	if result.FailedCount > 0 && result.UpdatedCount > 0 {
+		return "Excel file imported with some errors and some rows were updated. Please check the details."
 	}
 	if result.FailedCount > 0 {
 		return "Excel file imported with some errors. Please check the error messages."
 	}
-	if result.SkippedCount > 0 {
-		return "Excel file imported successfully. Some rows were skipped."
+	if result.UpdatedCount > 0 {
+		return "Excel file imported successfully. Some rows were updated."
 	}
 	return "Excel file imported successfully!"
 }
