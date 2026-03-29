@@ -25,6 +25,7 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	Name     string
+	SSLMode  string
 }
 
 // ContactConfig holds contact information (loaded from env to avoid hardcoding)
@@ -55,6 +56,7 @@ func Load() *Config {
 			User:     os.Getenv("DB_USER"),
 			Password: os.Getenv("DB_PASSWORD"),
 			Name:     os.Getenv("DB_NAME"),
+			SSLMode:  os.Getenv("DB_SSLMODE"),
 		},
 		Contact: ContactConfig{
 			CenterName:     getEnvOrDefault("CONTACT_CENTER_NAME", "ศูนย์เครื่องมือแพทย์"),

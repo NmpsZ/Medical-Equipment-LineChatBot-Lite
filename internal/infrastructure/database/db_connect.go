@@ -23,9 +23,13 @@ func Connect(cfg *config.Config) error {
 	// 	return fmt.Errorf("database configuration is incomplete: host=%s, user=%s, dbname=%s, port=%s",
 	// 		cfg.DB.Host, cfg.DB.User, cfg.DB.Name, cfg.DB.Port)
 	// }
+	sslmode := "require"
+	if cfg.DB.SSLMode != "" {
+		sslmode = cfg.DB.SSLMode
+	}
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port,
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port, sslmode,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
