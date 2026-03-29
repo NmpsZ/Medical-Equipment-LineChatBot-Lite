@@ -75,7 +75,9 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 
 		// Skip if no ID Code
 		if excelRow.IDCode == "" {
-			result.SkippedCount++
+			result.FailedCount++
+			result.FailedRows = append(result.FailedRows, rowNum)
+			result.ErrorMessages = append(result.ErrorMessages, fmt.Sprintf("Row %d: ID Code is missing", rowNum))
 			continue
 		}
 
@@ -143,6 +145,10 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 		// 5. Map to Entity
 		equipment := uc.mapper.ToEquipmentEntity(createEquipmentDTO)
 
+		// 5.5 Check if equipment already exists
+		existingData, _ := uc.equipmentRepo.FindByIDCode(equipment.IDCode)
+		isExists := existingData != nil
+
 		// 6. Save Equipment (CreateOrUpdate)
 		if err := uc.equipmentRepo.CreateOrUpdate(ctx, equipment); err != nil {
 			result.FailedCount++
@@ -151,12 +157,15 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 			continue
 		}
 
-		result.SuccessCount++
+		if isExists {
+			result.UpdatedCount++
+		} else {
+			result.SuccessCount++
+		}
 	}
 
-	// ⭐ Log summary
-	log.Printf("🎉 Import completed: Success=%d, Failed=%d, Skipped=%d",
-		result.SuccessCount, result.FailedCount, result.SkippedCount)
+	log.Printf("Import completed: New=%d, Updated=%d, Failed=%d",
+		result.SuccessCount, result.UpdatedCount, result.FailedCount)
 
 	return result, nil
 }
