@@ -1,0 +1,47 @@
+package templates
+
+import "fmt"
+
+// GetActionMenuFlex returns a Flex Message with options to view equipment info or report issue
+// Shown after OCR confirmation
+func GetActionMenuFlex(serialNumber string) map[string]interface{} {
+	return map[string]interface{}{
+		"type": "bubble",
+		"size": "kilo",
+		"header": map[string]interface{}{
+			"type":            "box",
+			"layout":          "vertical",
+			"backgroundColor": ColorSuccess,
+			"paddingAll":      "12px",
+			"contents": []interface{}{
+				map[string]interface{}{"type": "text", "text": "✅ ยืนยันเลขเครื่องสำเร็จ", "color": ColorWhite, "size": "md", "weight": "bold"},
+			},
+		},
+		"body": map[string]interface{}{
+			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "md", "weight": "bold", "color": ColorAccent,
+				},
+				map[string]interface{}{"type": "separator", "margin": "md"},
+				map[string]interface{}{
+					"type": "text", "text": "ต้องการทำอะไรต่อ?", "size": "sm", "margin": "md", "color": ColorText,
+				},
+			},
+		},
+		"footer": map[string]interface{}{
+			"type": "box", "layout": "vertical", "spacing": "sm",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type": "button", "style": "primary", "color": ColorAccent,
+					"action": map[string]interface{}{
+						"type":        "postback",
+						"label":       "🔍 ดูข้อมูลเครื่อง",
+						"data":        fmt.Sprintf("action=view_equipment_info&serial=%s", serialNumber),
+						"displayText": "ดูข้อมูลเครื่อง",
+					},
+				},
+			},
+		},
+	}
+}
