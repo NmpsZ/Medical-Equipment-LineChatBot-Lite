@@ -23,7 +23,7 @@ func Connect(cfg *config.Config) error {
 	// 	return fmt.Errorf("database configuration is incomplete: host=%s, user=%s, dbname=%s, port=%s",
 	// 		cfg.DB.Host, cfg.DB.User, cfg.DB.Name, cfg.DB.Port)
 	// }
-	sslmode := "require"
+	sslmode := "disable"
 	if cfg.DB.SSLMode != "" {
 		sslmode = cfg.DB.SSLMode
 	}
