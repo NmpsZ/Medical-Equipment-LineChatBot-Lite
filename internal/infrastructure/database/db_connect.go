@@ -32,7 +32,10 @@ func Connect(cfg *config.Config) error {
 		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port, sslmode,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // disable prepared statements for PgBouncer (Supabase)
+	}), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Postgres: %w", err)
 	}
