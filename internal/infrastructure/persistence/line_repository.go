@@ -75,6 +75,8 @@ func (r *LineRepository) ReplyFlexMessage(replyToken, altText string, flexConten
 		return nil
 	}
 
+	flexContent = AddCopyrightToFlex(flexContent)
+
 	requestBody := map[string]interface{}{
 		"replyToken": replyToken,
 		"messages": []map[string]interface{}{
@@ -87,6 +89,8 @@ func (r *LineRepository) ReplyFlexMessage(replyToken, altText string, flexConten
 
 // PushFlexMessage sends a Flex Message push to a user
 func (r *LineRepository) PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error {
+	flexContent = AddCopyrightToFlex(flexContent)
+
 	requestBody := map[string]interface{}{
 		"to": userID,
 		"messages": []map[string]interface{}{
@@ -172,6 +176,8 @@ func (r *LineRepository) BroadcastMessage(text string) error {
 
 // BroadcastFlexMessage - ส่ง Flex Message หาทุกคนที่เพิ่มเพื่อน Bot
 func (r *LineRepository) BroadcastFlexMessage(altText string, flexContent map[string]interface{}) error {
+	flexContent = AddCopyrightToFlex(flexContent)
+
 	requestBody := map[string]interface{}{
 		"messages": []map[string]interface{}{
 			{
@@ -273,4 +279,69 @@ func (r *LineRepository) GetRoomMemberProfile(roomID, userID string) (*model.Use
 		PictureURL:    profile.PictureUrl,
 		StatusMessage: "", // RoomMemberProfileResponse might not have status message
 	}, nil
+}
+
+// AddCopyrightToFlex processes a Flex Message structure (bubble or carousel) and injects the copyright notice
+func AddCopyrightToFlex(flexContent map[string]interface{}) map[string]interface{} {
+	if flexContent == nil {
+		return nil
+	}
+
+	contentType, _ := flexContent["type"].(string)
+
+	if contentType == "bubble" {
+		flexContent = addCopyrightToBubble(flexContent)
+	} else if contentType == "carousel" {
+		if contents, ok := flexContent["contents"].([]interface{}); ok {
+			for i, item := range contents {
+				if bubble, ok := item.(map[string]interface{}); ok {
+					contents[i] = addCopyrightToBubble(bubble)
+				}
+			}
+		}
+	}
+
+	return flexContent
+}
+
+func addCopyrightToBubble(bubble map[string]interface{}) map[string]interface{} {
+	if bubble == nil {
+		return nil
+	}
+
+	copyrightElement := map[string]interface{}{
+		"type":   "text",
+		"text":   "© 2026 med-q@ku. All rights reserved.",
+		"size":   "xs",
+		"color":  "#78909C", // ColorTextLight equivalent
+		"align":  "center",
+		"margin": "md",
+	}
+
+	// Check if bubble already has a footer
+	if footer, ok := bubble["footer"].(map[string]interface{}); ok {
+		// Wrap the existing footer inside a new vertical box, and put copyright at the bottom
+		bubble["footer"] = map[string]interface{}{
+			"type":     "box",
+			"layout":   "vertical",
+			"spacing":  "sm",
+			"contents": []interface{}{
+				footer, // Original footer becomes a nested child
+				copyrightElement,
+			},
+		}
+	} else {
+		// Create new footer with copyright
+		bubble["footer"] = map[string]interface{}{
+			"type":       "box",
+			"layout":     "vertical",
+			"spacing":    "sm",
+			"paddingAll": "10px",
+			"contents": []interface{}{
+				copyrightElement,
+			},
+		}
+	}
+
+	return bubble
 }
