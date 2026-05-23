@@ -320,17 +320,15 @@ func addCopyrightToBubble(bubble map[string]interface{}) map[string]interface{} 
 
 	// Check if bubble already has a footer
 	if footer, ok := bubble["footer"].(map[string]interface{}); ok {
-		if contents, ok := footer["contents"].([]interface{}); ok {
-			// Append copyright to existing footer contents
-			footer["contents"] = append(contents, copyrightElement)
-		} else if contents, ok := footer["contents"].([]map[string]interface{}); ok {
-			newContents := make([]interface{}, len(contents))
-			for i, v := range contents {
-				newContents[i] = v
-			}
-			footer["contents"] = append(newContents, copyrightElement)
-		} else {
-			footer["contents"] = []interface{}{copyrightElement}
+		// Wrap the existing footer inside a new vertical box, and put copyright at the bottom
+		bubble["footer"] = map[string]interface{}{
+			"type":     "box",
+			"layout":   "vertical",
+			"spacing":  "sm",
+			"contents": []interface{}{
+				footer, // Original footer becomes a nested child
+				copyrightElement,
+			},
 		}
 	} else {
 		// Create new footer with copyright
