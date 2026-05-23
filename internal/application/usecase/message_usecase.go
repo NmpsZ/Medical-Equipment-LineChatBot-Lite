@@ -170,8 +170,6 @@ func (uc *MessageUseCase) handleTrackStatusInput(msg *model.IncomingMessage, tex
 	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(tickets))
 }
 
-
-
 // HandleImageMessage handles incoming image message - processes OCR
 func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 	log.Printf("🖼️ Processing image from user: %s, imageID: %s", msg.UserID, msg.ImageID)
@@ -189,48 +187,64 @@ func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgImageReceived)
 	}
 
-	// Step 1: Download image from LINE
-	imageBytes, err := uc.lineRepo.GetImageContent(msg.ImageID)
+	// Reply immediately to the user to let them know the system is processing
+	err := uc.lineRepo.ReplyMessage(msg.ReplyToken, "🔍 กำลังประมวลผลรูปภาพเพื่อสแกนหมายเลขเครื่อง กรุณารอสักครู่ค่ะ... ⏳")
 	if err != nil {
-		log.Printf("❌ Failed to download image: %v", err)
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
+		log.Printf("❌ Failed to send processing reply: %v", err)
 	}
 
-	// Step 2: Send to OCR API
-	ocrResult, err := uc.ocrClient.ProcessImage(imageBytes, msg.ImageID+".jpg")
-	if err != nil {
-		log.Printf("❌ OCR processing failed: %v", err)
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
-	}
+	// Process image asynchronously in background
+	go func(userID, imageID string) {
+		// Step 1: Download image from LINE
+		imageBytes, err := uc.lineRepo.GetImageContent(imageID)
+		if err != nil {
+			log.Printf("❌ Failed to download image: %v", err)
+			_ = uc.lineRepo.PushFlexMessage(userID, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
+			return
+		}
 
-	// Step 3: Get best text from OCR result
-	detectedText := uc.ocrClient.GetDetectedCode(ocrResult)
-	if detectedText == "" {
-		log.Println("⚠️ OCR detected no text")
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "อ่านรูปไม่สำเร็จ", templates.GetOCRErrorFlex())
-	}
+		// Step 2: Send to OCR API
+		ocrResult, err := uc.ocrClient.ProcessImage(imageBytes, imageID+".jpg")
+		if err != nil {
+			log.Printf("❌ OCR processing failed: %v", err)
+			_ = uc.lineRepo.PushFlexMessage(userID, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
+			return
+		}
 
-	log.Printf("📝 OCR detected: %s", detectedText)
+		// Step 3: Get best text from OCR result
+		detectedText := uc.ocrClient.GetDetectedCode(ocrResult)
+		if detectedText == "" {
+			log.Println("⚠️ OCR detected no text")
+			_ = uc.lineRepo.PushFlexMessage(userID, "อ่านรูปไม่สำเร็จ", templates.GetOCRErrorFlex())
+			return
+		}
 
-	// Step 4: Check if equipment exists in DB
-	equipment, err := uc.equipmentRepo.FindBySerialOrCode(detectedText)
-	if err != nil {
-		log.Printf("❌ DB lookup failed: %v", err)
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
-	}
+		log.Printf("📝 OCR detected: %s", detectedText)
 
-	if equipment == nil {
-		log.Printf("⚠️ Equipment not found: %s", detectedText)
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบในฐานระบบ", templates.GetOCRNotFoundFlex(detectedText))
-	}
+		// Step 4: Check if equipment exists in DB
+		equipment, err := uc.equipmentRepo.FindBySerialOrCode(detectedText)
+		if err != nil {
+			log.Printf("❌ DB lookup failed: %v", err)
+			_ = uc.lineRepo.PushFlexMessage(userID, "เกิดข้อผิดพลาด", templates.GetOCRErrorFlex())
+			return
+		}
 
-	// Step 5: Store session for confirmation
-	uc.sessionStore.Set(msg.UserID, &session.OCRSession{
-		SerialNumber: detectedText,
-	})
+		if equipment == nil {
+			log.Printf("⚠️ Equipment not found: %s", detectedText)
+			_ = uc.lineRepo.PushFlexMessage(userID, "ไม่พบในฐานระบบ", templates.GetOCRNotFoundFlex(detectedText))
+			return
+		}
 
-	// Step 6: Send confirmation Flex Message
-	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ยืนยันหมายเลข", templates.GetOCRConfirmationFlex(detectedText, ""))
+		// Step 5: Store session for confirmation
+		uc.sessionStore.Set(userID, &session.OCRSession{
+			SerialNumber: detectedText,
+		})
+
+		// Step 6: Send confirmation Flex Message using Push Message
+		_ = uc.lineRepo.PushFlexMessage(userID, "ยืนยันหมายเลข", templates.GetOCRConfirmationFlex(detectedText, ""))
+	}(msg.UserID, msg.ImageID)
+
+	return nil
 }
 
 // HandleLocationMessage handles incoming location message
